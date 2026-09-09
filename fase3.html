@@ -6,7 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.1/dist/aframe-master.min.js"></script>
   </head>
   <body>
-    <a-scene shadow="type: pcf">
+    <a-scene shadow="type: pcf" webxr="optionalFeatures: hit-test, local-floor;" ar-hit-test="target:#anclaCAD; type:footprint;">
 
       <!-- Piso -->
       <a-plane rotation="-90 0 0" width="20" height="20" color="#DCDCDC" shadow="receive: true"></a-plane>
@@ -23,15 +23,21 @@
 
       <a-box position="1.5 0.5 -4" width="1" height="1" depth="1" color="red"></a-box>
 
-      <!-- Entidad que muestra el modelo CAD -->
-      <!-- auto-fit-suelo ahora centra en X/Z Y apoya en el piso (Y) -->
-      <a-entity
-        id="modeloCAD"
-        gltf-model="#modeloIndustrial"
-        position="0 0 -4"
-        rotation="90 0 0"
-        auto-fit-suelo="tamanoObjetivo: 1.5"
-        shadow="cast: true; receive: true">
+      <!-- Entidad "ancla": esta es la que ar-hit-test mueve al punto real que toques.
+           Empieza oculta (visible: false) y ar-hit-test la muestra automáticamente
+           en cuanto la colocas sobre una superficie real. -->
+      <a-entity id="anclaCAD" position="0 0 -4" visible="false">
+        <!-- El modelo CAD va DENTRO de la ancla. auto-fit-suelo ajusta su escala
+             y lo centra/apoya en el ORIGEN LOCAL de la ancla (0 0 0), así que
+             sin importar a dónde mueva la ancla el hit-test, el modelo siempre
+             queda bien parado justo en ese punto. -->
+        <a-entity
+          id="modeloCAD"
+          gltf-model="#modeloIndustrial"
+          rotation="90 0 0"
+          auto-fit-suelo="tamanoObjetivo: 1.5"
+          shadow="cast: true; receive: true">
+        </a-entity>
       </a-entity>
 
       <!-- Cámara -->
