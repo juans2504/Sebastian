@@ -13,27 +13,24 @@
       <a-sky color="#CFE8F0"></a-sky>
 
       <!-- Iluminación -->
-      <a-entity light="type: ambient; intensity: 0.6; color: #FFFFFF"></a-entity>
+      <a-entity light="type: ambient; intensity: 1.0; color: #FFFFFF"></a-entity>
+      <a-entity light="type: hemisphere; intensity: 0.8; color: #FFFFFF; groundColor: #444444"></a-entity>
       <a-entity light="type: directional; intensity: 0.8; castShadow: true" position="3 6 2"></a-entity>
 
-      <!-- ===================================================== -->
-      <!-- Precarga del modelo CAD exportado como .glb            -->
-      <!-- IMPORTANTE: el archivo debe estar en la carpeta        -->
-      <!-- "models/" junto a este index.html                      -->
-      <!-- ===================================================== -->
       <a-assets>
         <a-asset-item id="modeloIndustrial" src="models/modelo.glb"></a-asset-item>
       </a-assets>
 
       <a-box position="1.5 0.5 -4" width="1" height="1" depth="1" color="red"></a-box>
-      
+
       <!-- Entidad que muestra el modelo CAD -->
-      <!-- Ajusta position/scale/rotation según cómo se vea tu modelo -->
+      <!-- El componente auto-fit-suelo ajusta escala y posición automáticamente -->
       <a-entity
+        id="modeloCAD"
         gltf-model="#modeloIndustrial"
         position="0 0 -4"
-        scale="0.01 0.01 0.01"
-        rotation="0 0 -90"
+        rotation="90 0 0"
+        auto-fit-suelo="tamanoObjetivo: 1.5"
         shadow="cast: true; receive: true">
       </a-entity>
 
@@ -41,5 +38,39 @@
       <a-entity camera position="0 1.6 0" look-controls wasd-controls></a-entity>
 
     </a-scene>
+
+    <script>
+      AFRAME.registerComponent('auto-fit-suelo', {
+        schema: {
+          tamanoObjetivo: { type: 'number', default: 1.5 } // tamaño deseado en metros (el lado más grande)
+        },
+        init: function () {
+          this.el.addEventListener('model-loaded', () => {
+            const obj3D = this.el.getObject3D('mesh');
+            if (!obj3D) return;
+
+            // 1. Calcular el tamaño actual del modelo (ya con su rotación aplicada)
+            const box = new THREE.Box3().setFromObject(obj3D);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            const ladoMasGrande = Math.max(size.x, size.y, size.z);
+            if (ladoMasGrande === 0) return;
+
+            // 2. Escalar para que el lado más grande mida "tamanoObjetivo" metros
+            const factor = this.data.tamanoObjetivo / ladoMasGrande;
+            this.el.object3D.scale.set(factor, factor, factor);
+
+            // 3. Recalcular la caja DESPUÉS de escalar, para saber cuánto hay que subirlo
+            const boxEscalada = new THREE.Box3().setFromObject(obj3D);
+            const minY = boxEscalada.min.y;
+
+            // 4. Subir el modelo para que su punto más bajo toque y=0 (el piso)
+            const posicionActual = this.el.getAttribute('position');
+            this.el.object3D.position.y = posicionActual.y - minY;
+          });
+        }
+      });
+    </script>
   </body>
 </html>
