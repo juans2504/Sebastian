@@ -24,7 +24,7 @@
       <a-box position="1.5 0.5 -4" width="1" height="1" depth="1" color="red"></a-box>
 
       <!-- Entidad que muestra el modelo CAD -->
-      <!-- El componente auto-fit-suelo ajusta escala y posición automáticamente -->
+      <!-- auto-fit-suelo ahora centra en X/Z Y apoya en el piso (Y) -->
       <a-entity
         id="modeloCAD"
         gltf-model="#modeloIndustrial"
@@ -49,25 +49,40 @@
             const obj3D = this.el.getObject3D('mesh');
             if (!obj3D) return;
 
-            // 1. Calcular el tamaño actual del modelo (ya con su rotación aplicada)
-            const box = new THREE.Box3().setFromObject(obj3D);
-            const size = new THREE.Vector3();
-            box.getSize(size);
+            // 0. Guardar la posición X/Z deseada (la que pusiste en el atributo "position")
+            //    ANTES de tocar nada, para saber a dónde debe quedar centrado el modelo.
+            const posDeseada = this.el.object3D.position.clone();
 
-            const ladoMasGrande = Math.max(size.x, size.y, size.z);
+            // 1. Medir el tamaño actual del modelo (con la rotación ya aplicada)
+            const box1 = new THREE.Box3().setFromObject(obj3D);
+            const size1 = new THREE.Vector3();
+            box1.getSize(size1);
+
+            const ladoMasGrande = Math.max(size1.x, size1.y, size1.z);
             if (ladoMasGrande === 0) return;
 
             // 2. Escalar para que el lado más grande mida "tamanoObjetivo" metros
             const factor = this.data.tamanoObjetivo / ladoMasGrande;
             this.el.object3D.scale.set(factor, factor, factor);
 
-            // 3. Recalcular la caja DESPUÉS de escalar, para saber cuánto hay que subirlo
-            const boxEscalada = new THREE.Box3().setFromObject(obj3D);
-            const minY = boxEscalada.min.y;
+            // 3. Volver a medir DESPUÉS de escalar: como el pivote del modelo puede no
+            //    estar en su centro geométrico, necesitamos el centro real (X, Z) y el
+            //    punto más bajo (Y) para saber cuánto hay que mover el objeto.
+            const box2 = new THREE.Box3().setFromObject(obj3D);
+            const centro2 = new THREE.Vector3();
+            box2.getCenter(centro2);
+            const minY2 = box2.min.y;
 
-            // 4. Subir el modelo para que su punto más bajo toque y=0 (el piso)
-            const posicionActual = this.el.getAttribute('position');
-            this.el.object3D.position.y = posicionActual.y - minY;
+            // 4. Calcular cuánto falta mover en cada eje:
+            //    - X y Z: para que el CENTRO del modelo quede en la posición deseada
+            //    - Y: para que el punto más BAJO del modelo toque el piso (y = 0)
+            const deltaX = posDeseada.x - centro2.x;
+            const deltaZ = posDeseada.z - centro2.z;
+            const deltaY = 0 - minY2;
+
+            this.el.object3D.position.x += deltaX;
+            this.el.object3D.position.y += deltaY;
+            this.el.object3D.position.z += deltaZ;
           });
         }
       });
