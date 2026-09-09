@@ -53,6 +53,12 @@
             //    ANTES de tocar nada, para saber a dónde debe quedar centrado el modelo.
             const posDeseada = this.el.object3D.position.clone();
 
+            // IMPORTANTE: forzamos la actualización de la matriz de transformación
+            // (rotación/posición/escala) ANTES de medir. Si no hacemos esto, Box3 puede
+            // usar datos desactualizados (por ejemplo, la rotación aún no aplicada),
+            // dando medidas y centros incorrectos.
+            this.el.object3D.updateMatrixWorld(true);
+
             // 1. Medir el tamaño actual del modelo (con la rotación ya aplicada)
             const box1 = new THREE.Box3().setFromObject(obj3D);
             const size1 = new THREE.Vector3();
@@ -64,6 +70,11 @@
             // 2. Escalar para que el lado más grande mida "tamanoObjetivo" metros
             const factor = this.data.tamanoObjetivo / ladoMasGrande;
             this.el.object3D.scale.set(factor, factor, factor);
+
+            // Volvemos a forzar la actualización de la matriz después de escalar,
+            // por la misma razón: si no lo hacemos, la siguiente medición (box2)
+            // puede seguir reflejando el tamaño ANTES de escalar.
+            this.el.object3D.updateMatrixWorld(true);
 
             // 3. Volver a medir DESPUÉS de escalar: como el pivote del modelo puede no
             //    estar en su centro geométrico, necesitamos el centro real (X, Z) y el
@@ -83,6 +94,8 @@
             this.el.object3D.position.x += deltaX;
             this.el.object3D.position.y += deltaY;
             this.el.object3D.position.z += deltaZ;
+
+            this.el.object3D.updateMatrixWorld(true);
           });
         }
       });
