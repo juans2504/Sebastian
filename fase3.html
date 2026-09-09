@@ -46,8 +46,12 @@
         },
         init: function () {
           this.el.addEventListener('model-loaded', () => {
+            console.log('[auto-fit-suelo] evento model-loaded recibido');
             const obj3D = this.el.getObject3D('mesh');
-            if (!obj3D) return;
+            if (!obj3D) {
+              console.warn('[auto-fit-suelo] No se encontró el objeto "mesh". El modelo no cargó bien.');
+              return;
+            }
 
             // 0. Guardar la posición X/Z deseada (la que pusiste en el atributo "position")
             //    ANTES de tocar nada, para saber a dónde debe quedar centrado el modelo.
@@ -65,10 +69,22 @@
             box1.getSize(size1);
 
             const ladoMasGrande = Math.max(size1.x, size1.y, size1.z);
-            if (ladoMasGrande === 0) return;
+            console.log('[auto-fit-suelo] tamaño medido (antes de escalar):', size1, 'lado más grande:', ladoMasGrande);
+
+            if (!isFinite(ladoMasGrande) || ladoMasGrande <= 0) {
+              console.warn('[auto-fit-suelo] Medida inválida, no se puede escalar. Se deja el modelo sin tocar.');
+              return;
+            }
 
             // 2. Escalar para que el lado más grande mida "tamanoObjetivo" metros
             const factor = this.data.tamanoObjetivo / ladoMasGrande;
+            console.log('[auto-fit-suelo] factor de escala calculado:', factor);
+
+            if (!isFinite(factor) || factor <= 0) {
+              console.warn('[auto-fit-suelo] Factor de escala inválido:', factor, '. No se aplica escala.');
+              return;
+            }
+
             this.el.object3D.scale.set(factor, factor, factor);
 
             // Volvemos a forzar la actualización de la matriz después de escalar,
@@ -91,11 +107,21 @@
             const deltaZ = posDeseada.z - centro2.z;
             const deltaY = 0 - minY2;
 
+            console.log('[auto-fit-suelo] centro medido:', centro2, 'minY:', minY2);
+            console.log('[auto-fit-suelo] deltas a aplicar:', { deltaX, deltaY, deltaZ });
+
+            if (![deltaX, deltaY, deltaZ].every(isFinite)) {
+              console.warn('[auto-fit-suelo] Delta inválido, no se mueve el modelo para evitar que desaparezca.');
+              return;
+            }
+
             this.el.object3D.position.x += deltaX;
             this.el.object3D.position.y += deltaY;
             this.el.object3D.position.z += deltaZ;
 
             this.el.object3D.updateMatrixWorld(true);
+
+            console.log('[auto-fit-suelo] posición final:', this.el.object3D.position, 'escala final:', this.el.object3D.scale);
           });
         }
       });
