@@ -23,10 +23,10 @@
 
       <a-box position="1.5 0.5 -4" width="1" height="1" depth="1" color="red"></a-box>
 
-      <!-- Entidad "ancla": esta es la que ar-hit-test mueve al punto real que toques.
-           Empieza oculta (visible: false) y ar-hit-test la muestra automáticamente
-           en cuanto la colocas sobre una superficie real. -->
-      <a-entity id="anclaCAD" position="0 0 -4" visible="false">
+      <!-- Entidad "ancla": esta es la que ar-hit-test mueve al punto real que toques
+           cuando estás en AR. Ya NO empieza oculta, así que en la vista normal del
+           navegador (o VR) se ve de inmediato en su posición de prueba (0 0 -4). -->
+      <a-entity id="anclaCAD" position="0 0 -4">
         <!-- El modelo CAD va DENTRO de la ancla. auto-fit-suelo ajusta su escala
              y lo centra/apoya en el ORIGEN LOCAL de la ancla (0 0 0), así que
              sin importar a dónde mueva la ancla el hit-test, el modelo siempre
