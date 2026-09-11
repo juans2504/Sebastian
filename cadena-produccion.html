@@ -3,14 +3,39 @@
   <head>
     <meta charset="utf-8">
     <title>Laboratorio XR - Fase 2 - Cadena de Producción</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.1/dist/aframe-master.min.js"></script>
+    <style>
+      #boton-ar {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999999;
+        padding: 14px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        color: #ffffff;
+        border: none;
+        border-radius: 30px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        background: #4CC3D9;
+      }
+    </style>
   </head>
   <body>
-    <a-scene shadow="type: pcf">
+    <!-- Botón grande y visible para entrar en modo AR.
+         Requiere un navegador con soporte WebXR "immersive-ar"
+         (Chrome en Android, o el navegador del Meta Quest 3).
+         No funciona en Safari/iOS. -->
+    <button id="boton-ar">Entrar en modo AR</button>
 
-      <!-- Piso de la fábrica -->
-      <a-plane rotation="-90 0 0" width="30" height="30" color="#DCDCDC" shadow="receive: true"></a-plane>
-      <a-sky color="#CFE8F0"></a-sky>
+    <a-scene shadow="type: pcf" webxr="optionalFeatures: local-floor;" renderer="alpha: true;">
+
+      <!-- Piso de la fábrica (se quita automáticamente en modo AR) -->
+      <a-plane id="piso" rotation="-90 0 0" width="30" height="30" color="#DCDCDC" shadow="receive: true"></a-plane>
+      <a-sky id="cielo" color="#CFE8F0"></a-sky>
 
       <!-- Iluminación: ambiente suave + luz direccional que genera sombras -->
       <a-entity light="type: ambient; intensity: 0.6; color: #FFFFFF"></a-entity>
@@ -113,5 +138,47 @@
       <a-entity camera position="0 1.6 0" rotation="0 -35 0" look-controls wasd-controls></a-entity>
 
     </a-scene>
+
+    <script>
+      // Conecta el botón visible con la entrada a modo AR de A-Frame.
+      document.addEventListener('DOMContentLoaded', function () {
+        var escena = document.querySelector('a-scene');
+        var botonAR = document.getElementById('boton-ar');
+        var piso = document.getElementById('piso');
+        var cielo = document.getElementById('cielo');
+        var contenedor = escena;
+
+        botonAR.addEventListener('click', function () {
+          if (escena.is('ar-mode')) {
+            escena.exitVR();
+          } else {
+            escena.enterAR();
+          }
+        });
+
+        // Quita el piso y el cielo al entrar en AR (para ver la cámara
+        // real detrás de la cadena de producción), y los vuelve a poner al salir.
+        escena.addEventListener('enter-vr', function () {
+          if (escena.is('ar-mode')) {
+            botonAR.textContent = 'Salir de AR';
+            if (piso.parentNode) contenedor.removeChild(piso);
+            if (cielo.parentNode) contenedor.removeChild(cielo);
+            if (escena.renderer) {
+              escena.renderer.setClearColor('#000000', 0);
+              escena.renderer.setClearAlpha(0);
+            }
+          }
+        });
+
+        escena.addEventListener('exit-vr', function () {
+          botonAR.textContent = 'Entrar en modo AR';
+          if (!piso.parentNode) contenedor.appendChild(piso);
+          if (!cielo.parentNode) contenedor.appendChild(cielo);
+          if (escena.renderer) {
+            escena.renderer.setClearAlpha(1);
+          }
+        });
+      });
+    </script>
   </body>
 </html>
