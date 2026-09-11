@@ -3,131 +3,213 @@
   <head>
     <meta charset="utf-8">
     <title>Laboratorio XR - Fase 3 - Modelo CAD</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.1/dist/aframe-master.min.js"></script>
+    <style>
+      #boton-vr, #boton-ar {
+        position: fixed;
+        bottom: 24px;
+        z-index: 999999;
+        padding: 14px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: Arial, sans-serif;
+        color: #ffffff;
+        border: none;
+        border-radius: 30px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      }
+      #boton-vr {
+        left: 50%;
+        transform: translateX(calc(-100% - 8px));
+        background: #EF2D5E;
+      }
+      #boton-ar {
+        left: 50%;
+        transform: translateX(8px);
+        background: #4CC3D9;
+      }
+    </style>
   </head>
   <body>
-    <a-scene shadow="type: pcf" webxr="optionalFeatures: hit-test, local-floor;" ar-hit-test="target:#anclaCAD; type:map; mapSize:0.5 0.5;">
+    <!-- Botones grandes y visibles para entrar en modo VR y AR.
+         El modo AR requiere un navegador con soporte WebXR
+         "immersive-ar" (Chrome en Android, o el navegador del
+         Meta Quest 3). No funciona en Safari/iOS. -->
+    <button id="boton-vr">Entrar en modo VR</button>
+    <button id="boton-ar">Entrar en modo AR</button>
 
-      <!-- Piso -->
-      <a-plane rotation="-90 0 0" width="20" height="20" color="#DCDCDC" shadow="receive: true"></a-plane>
-      <a-sky color="#CFE8F0"></a-sky>
+    <a-scene shadow="type: pcf" webxr="optionalFeatures: local-floor;" renderer="alpha: true;">
+
+      <!-- Modelo CAD exportado desde SolidWorks -> Blender -> GLB -->
+      <a-assets>
+        <a-asset-item id="modeloIndustrial" src="models/modelo.glb"></a-asset-item>
+      </a-assets>
+
+      <!-- Piso y cielo (se quitan automáticamente al entrar en modo AR,
+           para que se vea la cámara real detrás del modelo) -->
+      <a-plane id="piso" rotation="-90 0 0" width="20" height="20" color="#DCDCDC" shadow="receive: true"></a-plane>
+      <a-sky id="cielo" color="#CFE8F0"></a-sky>
 
       <!-- Iluminación -->
       <a-entity light="type: ambient; intensity: 1.0; color: #FFFFFF"></a-entity>
       <a-entity light="type: hemisphere; intensity: 0.8; color: #FFFFFF; groundColor: #444444"></a-entity>
       <a-entity light="type: directional; intensity: 0.8; castShadow: true" position="3 6 2"></a-entity>
 
-      <a-assets>
-        <a-asset-item id="modeloIndustrial" src="models/modelo.glb"></a-asset-item>
-      </a-assets>
-
-      <!-- Entidad "ancla": esta es la que ar-hit-test mueve al punto real que toques
-           cuando estás en AR. Ya NO empieza oculta, así que en la vista normal del
-           navegador (o VR) se ve de inmediato en su posición de prueba (0 0 -4). -->
-      <a-entity id="anclaCAD" position="0 0 -4">
-        <!-- El modelo CAD va DENTRO de la ancla. auto-fit-suelo ajusta su escala
-             y lo centra/apoya en el ORIGEN LOCAL de la ancla (0 0 0), así que
-             sin importar a dónde mueva la ancla el hit-test, el modelo siempre
-             queda bien parado justo en ese punto. -->
-        <a-entity
-          id="modeloCAD"
-          gltf-model="#modeloIndustrial"
-          rotation="90 0 0"
-          auto-fit-suelo="tamanoObjetivo: 3"
-          shadow="cast: true; receive: true">
-        </a-entity>
+      <!-- =========================================================
+           MODELO CAD
+           auto-fit-suelo hace tres cosas automáticamente, para que
+           ya no tengas que adivinar valores a mano:
+             1. Calcula el tamaño real del modelo y lo escala para
+                que su lado más grande mida "tamanoObjetivo" metros.
+             2. Lo centra en X/Z sobre la posición indicada en
+                "position" (aquí: 0, -, -4).
+             3. Lo baja/sube en Y para que su punto más bajo quede
+                exactamente tocando el piso (y = 0), sin flotar ni
+                enterrarse.
+           Lo único que sigues ajustando a mano es la ROTACIÓN,
+           porque esa depende de cómo quedó orientado tu modelo al
+           exportarlo. Empezamos en 180 0 0 según lo que vimos en
+           tu última captura (se veía "boca abajo" con rotation 0 0 0).
+           ========================================================= -->
+      <a-entity
+        id="modeloCAD"
+        gltf-model="#modeloIndustrial"
+        position="0 0 -4"
+        rotation="180 0 0"
+        auto-fit-suelo="tamanoObjetivo: 1.5"
+        shadow="cast: true; receive: true">
       </a-entity>
 
-      <!-- Cámara -->
-      <a-entity camera position="0 1.6 0" look-controls wasd-controls></a-entity>
+      <!-- Cámara con cursor (permite interactuar por mirada en móvil/VR/Quest) -->
+      <a-entity id="rig" position="0 1.6 4">
+        <a-camera wasd-controls look-controls>
+          <a-cursor color="#FFFFFF"></a-cursor>
+        </a-camera>
+      </a-entity>
 
     </a-scene>
 
     <script>
+      // Componente que ajusta automáticamente escala y posición del
+      // modelo CAD para que quede bien centrado y parado sobre el piso.
       AFRAME.registerComponent('auto-fit-suelo', {
         schema: {
           tamanoObjetivo: { type: 'number', default: 1.5 } // tamaño deseado en metros (el lado más grande)
         },
         init: function () {
           this.el.addEventListener('model-loaded', () => {
-            console.log('[auto-fit-suelo] evento model-loaded recibido');
             const obj3D = this.el.getObject3D('mesh');
             if (!obj3D) {
               console.warn('[auto-fit-suelo] No se encontró el objeto "mesh". El modelo no cargó bien.');
               return;
             }
 
-            // 0. Guardar la posición X/Z deseada (la que pusiste en el atributo "position")
-            //    ANTES de tocar nada, para saber a dónde debe quedar centrado el modelo.
+            // Guardar la posición X/Z deseada (la del atributo "position")
+            // antes de tocar nada.
             const posDeseada = this.el.object3D.position.clone();
 
-            // IMPORTANTE: forzamos la actualización de la matriz de transformación
-            // (rotación/posición/escala) ANTES de medir. Si no hacemos esto, Box3 puede
-            // usar datos desactualizados (por ejemplo, la rotación aún no aplicada),
-            // dando medidas y centros incorrectos.
             this.el.object3D.updateMatrixWorld(true);
 
             // 1. Medir el tamaño actual del modelo (con la rotación ya aplicada)
             const box1 = new THREE.Box3().setFromObject(obj3D);
             const size1 = new THREE.Vector3();
             box1.getSize(size1);
-
             const ladoMasGrande = Math.max(size1.x, size1.y, size1.z);
-            console.log('[auto-fit-suelo] tamaño medido (antes de escalar):', size1, 'lado más grande:', ladoMasGrande);
 
             if (!isFinite(ladoMasGrande) || ladoMasGrande <= 0) {
-              console.warn('[auto-fit-suelo] Medida inválida, no se puede escalar. Se deja el modelo sin tocar.');
+              console.warn('[auto-fit-suelo] Medida inválida, no se puede escalar.');
               return;
             }
 
             // 2. Escalar para que el lado más grande mida "tamanoObjetivo" metros
             const factor = this.data.tamanoObjetivo / ladoMasGrande;
-            console.log('[auto-fit-suelo] factor de escala calculado:', factor);
-
             if (!isFinite(factor) || factor <= 0) {
-              console.warn('[auto-fit-suelo] Factor de escala inválido:', factor, '. No se aplica escala.');
+              console.warn('[auto-fit-suelo] Factor de escala inválido:', factor);
               return;
             }
-
             this.el.object3D.scale.set(factor, factor, factor);
-
-            // Volvemos a forzar la actualización de la matriz después de escalar,
-            // por la misma razón: si no lo hacemos, la siguiente medición (box2)
-            // puede seguir reflejando el tamaño ANTES de escalar.
             this.el.object3D.updateMatrixWorld(true);
 
-            // 3. Volver a medir DESPUÉS de escalar: como el pivote del modelo puede no
-            //    estar en su centro geométrico, necesitamos el centro real (X, Z) y el
-            //    punto más bajo (Y) para saber cuánto hay que mover el objeto.
+            // 3. Volver a medir después de escalar, para saber el centro
+            //    real y el punto más bajo del modelo ya escalado.
             const box2 = new THREE.Box3().setFromObject(obj3D);
             const centro2 = new THREE.Vector3();
             box2.getCenter(centro2);
             const minY2 = box2.min.y;
 
-            // 4. Calcular cuánto falta mover en cada eje:
-            //    - X y Z: para que el CENTRO del modelo quede en la posición deseada
-            //    - Y: para que el punto más BAJO del modelo toque el piso (y = 0)
+            // 4. Mover para centrar en X/Z y apoyar sobre el piso (y = 0)
             const deltaX = posDeseada.x - centro2.x;
             const deltaZ = posDeseada.z - centro2.z;
             const deltaY = 0 - minY2;
 
-            console.log('[auto-fit-suelo] centro medido:', centro2, 'minY:', minY2);
-            console.log('[auto-fit-suelo] deltas a aplicar:', { deltaX, deltaY, deltaZ });
-
             if (![deltaX, deltaY, deltaZ].every(isFinite)) {
-              console.warn('[auto-fit-suelo] Delta inválido, no se mueve el modelo para evitar que desaparezca.');
+              console.warn('[auto-fit-suelo] Delta inválido, se deja el modelo sin mover.');
               return;
             }
 
             this.el.object3D.position.x += deltaX;
             this.el.object3D.position.y += deltaY;
             this.el.object3D.position.z += deltaZ;
-
             this.el.object3D.updateMatrixWorld(true);
 
-            console.log('[auto-fit-suelo] posición final:', this.el.object3D.position, 'escala final:', this.el.object3D.scale);
+            console.log('[auto-fit-suelo] escala final:', factor, 'posición final:', this.el.object3D.position);
           });
         }
+      });
+    </script>
+
+    <script>
+      // Conecta los botones visibles con la entrada a modo VR y AR de A-Frame.
+      document.addEventListener('DOMContentLoaded', function () {
+        var escena = document.querySelector('a-scene');
+        var botonVR = document.getElementById('boton-vr');
+        var botonAR = document.getElementById('boton-ar');
+        var piso = document.getElementById('piso');
+        var cielo = document.getElementById('cielo');
+        var contenedor = escena;
+
+        botonVR.addEventListener('click', function () {
+          if (escena.is('vr-mode')) {
+            escena.exitVR();
+          } else {
+            escena.enterVR();
+          }
+        });
+
+        botonAR.addEventListener('click', function () {
+          if (escena.is('ar-mode')) {
+            escena.exitVR();
+          } else {
+            escena.enterAR();
+          }
+        });
+
+        // Quita el piso y el cielo al entrar en AR (para ver la cámara
+        // real detrás del modelo), y los vuelve a poner al salir.
+        escena.addEventListener('enter-vr', function () {
+          if (escena.is('ar-mode')) {
+            botonAR.textContent = 'Salir de AR';
+            if (piso.parentNode) contenedor.removeChild(piso);
+            if (cielo.parentNode) contenedor.removeChild(cielo);
+            if (escena.renderer) {
+              escena.renderer.setClearColor('#000000', 0);
+              escena.renderer.setClearAlpha(0);
+            }
+          } else {
+            botonVR.textContent = 'Salir de VR';
+          }
+        });
+
+        escena.addEventListener('exit-vr', function () {
+          botonVR.textContent = 'Entrar en modo VR';
+          botonAR.textContent = 'Entrar en modo AR';
+          if (!piso.parentNode) contenedor.appendChild(piso);
+          if (!cielo.parentNode) contenedor.appendChild(cielo);
+          if (escena.renderer) {
+            escena.renderer.setClearAlpha(1);
+          }
+        });
       });
     </script>
   </body>
